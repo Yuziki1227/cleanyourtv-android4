@@ -78,7 +78,7 @@ final class ClockScene {
         ambient = root.findViewById(R.id.dreamAmbient);
         glow = new GradientDrawable();
         glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        ambient.setBackground(glow);
+        Compat.setBackground(ambient, glow);
         ambient.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) ->
                 glow.setGradientRadius((r - l) * 0.55f));
         colorIndex = random.nextInt(PALETTE.length);
@@ -120,7 +120,7 @@ final class ClockScene {
             // clock_glow false: plain black behind the clock (OLED); the clock itself still moves every minute.
             if (!cfg.clockGlow) {
                 wallpaperShown = true;   // also stops the glow's colour cycle
-                ambient.setBackground(null);
+                Compat.setBackground(ambient, null);
             }
             return;
         }
@@ -166,7 +166,7 @@ final class ClockScene {
                 wallpaperShown = true;
                 // As the image, not the background: a background is stretched to the view, so a picture of
                 // another shape than the screen would be distorted. centerCrop scales and crops it like Home.
-                ambient.setBackground(null);
+                Compat.setBackground(ambient, null);
                 ambient.setImageDrawable(new LayerDrawable(new Drawable[]{
                         new BitmapDrawable(res, bmp), new ColorDrawable(shade)}));
             });
@@ -223,9 +223,9 @@ final class ClockScene {
     }
 
     private void moveClock() {
-        content.animate().alpha(0f).setDuration(900).withLayer().withEndAction(() -> {
+        Compat.withEndAction(Compat.withLayer(content.animate().alpha(0f).setDuration(900)), () -> {
             placeClock();
-            content.animate().alpha(1f).setDuration(1200).withLayer().start();
+            Compat.withLayer(content.animate().alpha(1f).setDuration(1200)).start();
         }).start();
     }
 
@@ -259,6 +259,9 @@ final class ClockScene {
     private void setGlow(int color) {
         glowColor = color;
         int c = color & 0x00FFFFFF;
-        glow.setColors(new int[]{0x40000000 | c, 0x14000000 | c, 0x00000000 | c});
+        // GradientDrawable.setColors is API 16. Android 4.0/4.1 get one soft translucent colour instead of
+        // the three-stop fade; it is the same glow at a single strength.
+        if (Compat.atLeast(16)) glow.setColors(new int[]{0x40000000 | c, 0x14000000 | c, 0x00000000 | c});
+        else glow.setColor(0x20000000 | c);
     }
 }

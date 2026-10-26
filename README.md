@@ -2,6 +2,12 @@
   <a href="https://cleanyour.tv"><img src="https://raw.githubusercontent.com/Gathin23/cleanyourtv/main/docs/banner.png" alt="CleanYourTV. Your TV, minus the ads. Strip the bloatware from any Android TV or Google TV over Wi-Fi and replace the ad-filled home screen with a clean launcher that looks like an Apple TV. No root, no cable, nothing uninstalled, and a one-line restore." width="800"></a>
 </p>
 
+> **Android 4.0 (API 14) compatibility fork.** This fork is based on
+> [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv) and lowers the launcher's `minSdk` from 26 to **14**,
+> so it installs on Android 4.0 / 4.0.3 / 4.0.4 (Ice Cream Sandwich) TVs. It keeps the same Home screen and
+> version-gates the newer Android TV features. Build and install instructions, and the exact behaviour on a 4.0 set:
+> [docs/legacy-android-4.md](docs/legacy-android-4.md). Upstream requires Android 8.0 (API 26).
+
 <p align="center">
   <a href="https://github.com/Gathin23/cleanyourtv/stargazers"><img src="https://img.shields.io/github/stars/Gathin23/cleanyourtv?style=flat&cacheSeconds=1800&color=cfffcf&labelColor=15181e" alt="Stars"></a>
   <a href="https://github.com/Gathin23/cleanyourtv/pulls?q=is%3Amerged"><img src="https://img.shields.io/github/issues-search?query=repo%3AGathin23%2Fcleanyourtv%20is%3Apr%20is%3Amerged&style=flat&cacheSeconds=1800&label=merged%20PRs&color=cfffcf&labelColor=15181e" alt="Merged PRs"></a>
@@ -522,7 +528,7 @@ tools/theme.sh themes/aurora                                 # push a theme; --r
 | [`tools/flamechart.py`](tools/flamechart.py) | Draws a before/after flame chart from those traces, for a pull request: one lane per thread on a shared time scale, the work a change targets in magenta with its total. Optional, like the trace tools. [Guide](tools/flamechart.md). |
 | [`tools/screendiff.py`](tools/screendiff.py) | Compares a before and an after screenshot pixel by pixel, leaving out the clock or anything you mask, and writes the pair with your Wi-Fi name blurred. Optional, like the trace tools. [Guide](tools/screendiff.md). |
 | [`tools/race_calendar.py`](tools/race_calendar.py) | Writes this season's F1 calendar into a theme for race-weekend mode, from the free Jolpica API. |
-| [`launcher/build-and-install.sh`](launcher/build-and-install.sh) | Builds a shrunk release (about 526 KB), installs it, switches Home, and rolls back if Home does not land on it. |
+| [`launcher/build-and-install.sh`](launcher/build-and-install.sh) | Builds a shrunk release (about 850 KB in this legacy fork), installs it, switches Home, and rolls back if Home does not land on it. |
 
 The scripts never leave the TV without a Home app: they only disable a stock launcher they recognise,
 and skip the Home app in a list until another launcher answers HOME. Details below.
@@ -595,13 +601,16 @@ apps), which is why the report names that loss per package instead of calling it
 
 ## The launcher
 
-A small native home screen for Android TV: **about 526 KB**, plain Java, built for TVs with 1 GB of RAM.
-No blur, no video, no network permission, no background services.
+A small native home screen for Android TV: **about 850 KB** in this legacy build, plain Java, built for
+TVs with 1 GB of RAM. No blur, no video, no network permission, no background services.
 
-The **TV** needs Android 8.0 (API 26) or newer: `minSdk` is a compile-time floor in
-[`launcher/app/build.gradle`](launcher/app/build.gradle), and the install script asks the TV for
-`ro.build.version.sdk` before it builds, so an older set is told both numbers instead of failing at
-`pm install` (see [Troubleshooting](docs/TROUBLESHOOTING.md) for what is left on such a set).
+The **TV** needs Android 4.0 (API 14) or newer in this fork: `minSdk` is a compile-time floor in
+[`launcher/app/build.gradle`](launcher/app/build.gradle). The modern upstream build requires Android 8.0
+(API 26); this fork adds core-library desugaring, legacy multidex, Android 4.0 fallbacks and version-gated
+features. Read [Android 4.0 (API 14) launcher](docs/legacy-android-4.md) for what is available on a 4.0
+set, and use `launcher/build-and-install-legacy.sh` there. The install scripts still ask the TV for
+`ro.build.version.sdk` before building, so an older set is told both numbers instead of failing at
+`pm install` (see [Troubleshooting](docs/TROUBLESHOOTING.md)).
 
 | What | How it works |
 |---|---|

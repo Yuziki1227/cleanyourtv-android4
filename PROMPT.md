@@ -128,10 +128,11 @@ Launcher
   hit either, do the debloat half, say plainly that the launcher half is impossible here, and stop
   retrying installs. The matching `examples/` header says which case your TV is.
 - Check the TV's SDK level before promising the launcher, too: `tools/tv.py 'getprop
-  ro.build.version.sdk'` against `grep minSdk launcher/app/build.gradle` (26 = Android 8.0). A set
-  below it answers `INSTALL_FAILED_OLDER_SDK`; lowering `minSdk` is a source change you would then
-  maintain yourself, and an APK rebuilt elsewhere is nothing this repo can verify. On those sets offer
-  the debloat half and say the launcher cannot be installed. With no launcher to hand over to, the
+  ro.build.version.sdk'` against `grep minSdk launcher/app/build.gradle` (14 = Android 4.0 in this
+  fork; upstream is 26). A set below it answers `INSTALL_FAILED_OLDER_SDK`; lowering `minSdk` is a
+  source change you would then maintain yourself, and an APK rebuilt elsewhere is nothing this repo can
+  verify. On those sets offer the debloat half and say the launcher cannot be installed. For Android
+  4.0-6, use `launcher/build-and-install-legacy.sh` and read `docs/legacy-android-4.md`. With no launcher to hand over to, the
   stock one stays: `cmd package` does not exist before Android 7, so `tools/disable.sh` asks `dumpsys
   activity` for Home there and warns when neither answers - that warning means nothing was checked,
   and a set with no recovery has no way back (#795).

@@ -4,4 +4,8 @@
     <bool name="rtl_menu_bar">false</bool>
     <!-- Other locales keep the date on one line, ellipsized as before. -->
     <bool name="date_single_line">true</bool>
+    <!-- DreamService is API 17 and NotificationListenerService is API 18. Disabled on older sets so the
+         package manager never tries to bind a component whose base class is missing. -->
+    <bool name="dream_service_enabled">false</bool>
+    <bool name="notification_listener_enabled">false</bool>
 </resources>

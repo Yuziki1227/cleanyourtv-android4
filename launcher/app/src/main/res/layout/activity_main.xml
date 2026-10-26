@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -39,6 +40,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="top|left"
         android:layout_marginStart="60dp"
+        android:layout_marginLeft="60dp"
         android:layout_marginTop="158dp"
         android:orientation="vertical"
         android:focusable="false"
@@ -56,6 +58,7 @@
                 android:layout_width="3dp"
                 android:layout_height="13dp"
                 android:layout_marginEnd="10dp"
+                android:layout_marginRight="10dp"
                 android:background="@drawable/race_bar" />
 
             <TextView
@@ -109,6 +112,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="68dp"
+        android:layout_marginLeft="68dp"
         android:orientation="vertical"
         android:alpha="0">
 
@@ -129,6 +133,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
+            android:layout_marginLeft="4dp"
             android:layout_marginTop="12dp"
             android:singleLine="true"
             android:textColor="#B3FFFFFF"
@@ -141,6 +146,7 @@
             android:layout_width="wrap_content"
             android:layout_height="6dp"
             android:layout_marginStart="4dp"
+            android:layout_marginLeft="4dp"
             android:layout_marginTop="16dp"
             android:orientation="horizontal"
             android:visibility="gone" />
@@ -151,7 +157,9 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:paddingStart="56dp"
+        android:paddingLeft="56dp"
         android:paddingEnd="56dp"
+        android:paddingRight="56dp"
         android:paddingTop="26dp"
         android:clipChildren="false"
         android:clipToPadding="false">
@@ -168,8 +176,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_alignParentStart="true"
+                android:layout_alignParentLeft="true"
                 android:layout_toStartOf="@+id/topButtons"
+                android:layout_toLeftOf="@+id/topButtons"
                 android:layout_marginEnd="16dp"
+                android:layout_marginRight="16dp"
                 android:orientation="vertical">
 
                 <!-- The header texts use gravity left, not start: the launcher lays out left to right
@@ -183,6 +194,7 @@
                     android:singleLine="true"
                     android:ellipsize="end"
                     android:layout_marginStart="4dp"
+                    android:layout_marginLeft="4dp"
                     android:textColor="#8CFFFFFF"
                     android:textSize="12sp"
                     android:fontFamily="@string/font_medium"
@@ -195,27 +207,28 @@
                     android:orientation="horizontal"
                     android:baselineAligned="true">
 
-                    <TextClock
+                    <com.gathin.tvhome.ClockText
                         android:id="@+id/clock"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:format12Hour="h:mm"
-                        android:format24Hour="HH:mm"
+                        app:clockFormat12="h:mm"
+                        app:clockFormat24="HH:mm"
                         android:textColor="#FFFFFFFF"
                         android:textSize="52sp"
                         android:fontFamily="@string/font_light"
                         android:letterSpacing="-0.04"
                         android:includeFontPadding="false" />
 
-                    <TextClock
+                    <com.gathin.tvhome.ClockText
                         android:id="@+id/ampm"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
+                        android:layout_marginLeft="6dp"
                         android:layout_gravity="bottom"
                         android:layout_marginBottom="8dp"
-                        android:format12Hour="a"
-                        android:format24Hour=""
+                        app:clockFormat12="a"
+                        app:clockFormat24=""
                         android:textColor="#B3FFFFFF"
                         android:textSize="15sp"
                         android:fontFamily="@string/font_medium"
@@ -228,7 +241,9 @@
                         android:layout_height="26dp"
                         android:layout_gravity="bottom"
                         android:layout_marginStart="16dp"
+                        android:layout_marginLeft="16dp"
                         android:layout_marginEnd="16dp"
+                        android:layout_marginRight="16dp"
                         android:layout_marginBottom="8dp"
                         android:background="#33FFFFFF" />
 
@@ -255,7 +270,7 @@
                             android:includeFontPadding="false"
                             android:visibility="gone" />
 
-                        <TextClock
+                        <com.gathin.tvhome.ClockText
                             android:id="@+id/date"
                             android:gravity="left"
                             android:layout_width="match_parent"
@@ -264,8 +279,8 @@
                             android:maxLines="2"
                             android:lineSpacingExtra="6dp"
                             android:ellipsize="end"
-                            android:format12Hour="@string/date_format_home"
-                            android:format24Hour="@string/date_format_home"
+                            app:clockFormat12="@string/date_format_home"
+                            app:clockFormat24="@string/date_format_home"
                             android:textColor="#A6FFFFFF"
                             android:textSize="14sp"
                             android:fontFamily="@string/font_regular"
@@ -299,6 +314,7 @@
                 android:layout_width="wrap_content"
                 android:layout_below="@id/leftBlock"
                 android:layout_alignStart="@id/leftBlock"
+                android:layout_alignLeft="@id/leftBlock"
                 android:gravity="left"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
@@ -316,6 +332,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentEnd="true"
+                android:layout_alignParentRight="true"
                 android:layout_alignBottom="@id/leftBlock"
                 android:layout_marginBottom="6dp"
                 android:clipChildren="false"
@@ -327,6 +344,7 @@
                     style="@style/TopButton"
                     android:text="@string/inputs"
                     android:drawableStart="@drawable/ic_input"
+                    android:drawableLeft="@drawable/ic_input"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -337,6 +355,7 @@
                     android:ellipsize="end"
                     android:text="@string/wifi"
                     android:drawableStart="@drawable/ic_wifi"
+                    android:drawableLeft="@drawable/ic_wifi"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -352,6 +371,7 @@
                     style="@style/TopButtonIcon"
                     android:contentDescription="@string/reorder"
                     android:drawableStart="@drawable/ic_swap_vert"
+                    android:drawableLeft="@drawable/ic_swap_vert"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -360,6 +380,7 @@
                     android:visibility="gone"
                     android:contentDescription="@string/app_library"
                     android:drawableStart="@drawable/ic_apps_pill"
+                    android:drawableLeft="@drawable/ic_apps_pill"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -367,6 +388,7 @@
                     style="@style/TopButton"
                     android:text="@string/settings"
                     android:drawableStart="@drawable/ic_settings"
+                    android:drawableLeft="@drawable/ic_settings"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
         </RelativeLayout>
@@ -385,7 +407,9 @@
                 android:paddingTop="10dp"
                 android:paddingBottom="40dp"
                 android:paddingStart="10dp"
+                android:paddingLeft="10dp"
                 android:paddingEnd="10dp"
+                android:paddingRight="10dp"
                 android:clipToPadding="false"
                 android:clipChildren="false"
                 android:overScrollMode="never"

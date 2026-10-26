@@ -1,11 +1,13 @@
 package com.gathin.tvhome;
 
+import android.annotation.SuppressLint;
 import android.service.dreams.DreamService;
 
 /**
  * Screensaver: the launcher's thin clock and date on black, over a slow ambient glow (ClockScene).
  * No network, no images: cheap enough for a 1 GB TV.
  */
+@SuppressLint("NewApi")
 public class ClockDream extends DreamService {
 
     private ClockScene scene;

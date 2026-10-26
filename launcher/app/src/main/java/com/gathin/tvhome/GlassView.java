@@ -20,6 +20,8 @@ public class GlassView extends View {
     private final Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
+    /** Reused by the glow rings: the float-coordinate drawRoundRect is API 21, the RectF one is API 1. */
+    private final RectF glowRect = new RectF();
     private final float density;
     private float radius;
     /** Glow colour as 0xRRGGBB: white normally, a festival's accent (diya gold) while a festive skin is on. */
@@ -98,7 +100,8 @@ public class GlassView extends View {
                 float o = step * (i + 0.5f);
                 float t = 1f - (float) i / rings;
                 glow.setColor(Math.round(alpha * t) << 24 | glowRgb);
-                canvas.drawRoundRect(rect.left - o, rect.top - o, rect.right + o, rect.bottom + o, radius + o, radius + o, glow);
+                glowRect.set(rect.left - o, rect.top - o, rect.right + o, rect.bottom + o);
+                canvas.drawRoundRect(glowRect, radius + o, radius + o, glow);
             }
         }
         if (flat) {

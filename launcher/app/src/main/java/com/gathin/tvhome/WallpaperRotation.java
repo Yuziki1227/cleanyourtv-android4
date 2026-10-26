@@ -22,7 +22,12 @@ final class WallpaperRotation {
         List<File> result = new ArrayList<>();
         File[] entries = directory == null ? null : directory.listFiles();
         if (entries == null) return result;
-        Arrays.sort(entries, Comparator.comparing(File::getName));
+        Arrays.sort(entries, new Comparator<File>() {
+            @Override
+            public int compare(File a, File b) {
+                return a.getName().compareTo(b.getName());
+            }
+        });
         for (File entry : entries) {
             String name = entry.getName().toLowerCase(Locale.ROOT);
             if (entry.isFile() && entry.length() > 0 && entry.length() <= 10 * 1024 * 1024
@@ -58,7 +63,11 @@ final class WallpaperRotation {
 
     static File pick(List<File> images, String previous, Random random) {
         List<File> candidates = new ArrayList<>(images);
-        if (candidates.size() > 1) candidates.removeIf(image -> image.getName().equals(previous));
+        if (candidates.size() > 1) {
+            for (java.util.Iterator<File> it = candidates.iterator(); it.hasNext(); ) {
+                if (it.next().getName().equals(previous)) it.remove();
+            }
+        }
         return candidates.isEmpty() ? null : candidates.get(random.nextInt(candidates.size()));
     }
 

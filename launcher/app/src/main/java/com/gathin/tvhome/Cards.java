@@ -13,7 +13,6 @@ import android.content.pm.SigningInfo;
 import android.content.res.Resources;
 import android.content.res.XmlResourceParser;
 import android.os.Build;
-import android.util.AtomicFile;
 import android.util.Log;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -21,7 +20,6 @@ import org.xmlpull.v1.XmlPullParser;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -673,7 +671,7 @@ final class Cards {
         if (!file.exists()) return new TreeMap<>();
         String text;
         try {
-            text = new String(new AtomicFile(file).readFully(), StandardCharsets.UTF_8);
+            text = new String(new AtomicFile(file).readFully(), Charsets.UTF_8);
         } catch (IOException e) {
             Log.w(TAG, "cannot read " + file.getName() + ": " + e);
             return new TreeMap<>();
@@ -693,7 +691,7 @@ final class Cards {
         FileOutputStream out = null;
         try {
             out = af.startWrite();
-            out.write(encode(records).getBytes(StandardCharsets.UTF_8));
+            out.write(encode(records).getBytes(Charsets.UTF_8));
             af.finishWrite(out);
             return true;
         } catch (IOException e) {
@@ -806,7 +804,7 @@ final class Cards {
     static String encode(Map<String, Record> records) {
         List<Record> list = new ArrayList<>(records.values());
         if (list.size() > MAX_RECORDS) {
-            Collections.sort(list, (a, b) -> Long.compare(b.decidedAt, a.decidedAt));
+            Collections.sort(list, (a, b) -> Compat.compare(b.decidedAt, a.decidedAt));
             list = new ArrayList<>(list.subList(0, MAX_RECORDS));
         }
         Collections.sort(list, (a, b) -> a.pkg.compareTo(b.pkg));

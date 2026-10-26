@@ -33,8 +33,8 @@ public final class QuickSettingsActivity extends Activity {
             android.widget.FrameLayout.LayoutParams position =
                     (android.widget.FrameLayout.LayoutParams) panel.getLayoutParams();
             position.gravity = android.view.Gravity.TOP | android.view.Gravity.LEFT;
-            int inset = position.getMarginEnd();
-            position.setMarginEnd(0);
+            int inset = Compat.atLeast(17) ? position.getMarginEnd() : position.rightMargin;
+            Compat.setMarginEnd(position, 0);
             position.setMargins(inset, position.topMargin, 0, position.bottomMargin);
             panel.setLayoutParams(position);
         }

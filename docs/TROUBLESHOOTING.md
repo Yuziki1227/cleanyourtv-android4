@@ -335,16 +335,17 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   and `pm install` hung, then failed with `INSTALL_FAILED_VERIFICATION_FAILURE`, while it targeted
   SDK 29. It targets 34 now; if you built an old checkout, rebuild.
 - **`pm install` fails with `INSTALL_FAILED_OLDER_SDK`** on a set older than the launcher: the APK's
-  `minSdk` is a compile-time floor, so a TV on Android 7.0/7.1 (SDK 24/25) cannot take the published
-  build at all ([#576](https://github.com/Gathin23/cleanyourtv/issues/576)). Read both numbers before
-  changing anything: `tools/tv.py 'getprop ro.build.version.sdk'` and
-  `grep minSdk launcher/app/build.gradle` (26, i.e. Android 8.0, at the time of writing).
+  `minSdk` is a compile-time floor. In this fork the launcher is **API 14 (Android 4.0)**, so a TV on
+  Android 4.0-7.1 can take it; the upstream build is API 26 ([#576](https://github.com/Gathin23/cleanyourtv/issues/576)). Read both numbers before changing anything:
+  `tools/tv.py 'getprop ro.build.version.sdk'` and `grep minSdk launcher/app/build.gradle`
+  (14 = Android 4.0). On an Android 4.0-6 set use `launcher/build-and-install-legacy.sh`, which avoids
+  `cmd package` and `settings`; see [legacy-android-4.md](legacy-android-4.md).
   `launcher/build-and-install.sh` now asks the TV first and stops with both numbers, so nothing is
   built or pushed for a set that will refuse it; `build-and-install.ps1` only reports it after
   `pm install`, which fails safely with the stock launcher untouched. Lowering `minSdk` is a source
-  change, not a setting, and it means maintaining your own copy: the launcher uses AndroidX and
-  framework calls newer than API 25, so expect compile errors or a launcher that starts and then
-  crashes. An APK produced by rebuilding the project elsewhere (an assistant, an online builder, a
+  change, not a setting, and it means maintaining your own copy: this fork does that for API 14 with
+  desugaring and version-gated features, but a build below API 14 would still expect compile errors or
+  a launcher that starts and then crashes. An APK produced by rebuilding the project elsewhere (an assistant, an online builder, a
   "rebuilt for API 25" zip from a forum) is not something this repository can check, and the install
   scripts only push the APK they compiled themselves: a build signed with another key does not
   install over this one (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), so uninstall the old one first if you

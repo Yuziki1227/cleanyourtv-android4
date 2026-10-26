@@ -1,8 +1,10 @@
 package com.gathin.tvhome;
 
+import java.io.BufferedReader;
 import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -38,10 +40,23 @@ final class WallpaperCaptions {
     static Map<String, String> read(File folder) {
         File file = folder == null ? null : new File(folder, FILE_NAME);
         if (file == null || !file.isFile() || file.length() > 256 * 1024) return Collections.emptyMap();
+        BufferedReader reader = null;
         try {
-            return parse(Files.readAllLines(file.toPath(), StandardCharsets.UTF_8));
+            // java.nio.file.Files is API 26; a BufferedReader is the same read on Android 4.0.
+            reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), Charsets.UTF_8));
+            List<String> lines = new ArrayList<>();
+            String line;
+            while ((line = reader.readLine()) != null) lines.add(line);
+            return parse(lines);
         } catch (Exception e) {
             return Collections.emptyMap();
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 }

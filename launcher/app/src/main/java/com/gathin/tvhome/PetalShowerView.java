@@ -56,7 +56,7 @@ public final class PetalShowerView extends View {
         density = context.getResources().getDisplayMetrics().density;
         setFocusable(false);
         setClickable(false);
-        setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        Compat.setImportantForAccessibility(this, IMPORTANT_FOR_ACCESSIBILITY_NO);
         setWillNotDraw(false);
 
         Random seeded = new Random(0x9E7A1L);
@@ -106,7 +106,7 @@ public final class PetalShowerView extends View {
         playing = true;
         start = SystemClock.uptimeMillis();
         postDelayed(finish, duration);
-        postInvalidateOnAnimation();
+        Compat.postInvalidateOnAnimation(this);
     }
 
     private void finish() {
@@ -165,7 +165,7 @@ public final class PetalShowerView extends View {
             c.drawPath(veins[shape[i]], vein);
             c.restore();
         }
-        postInvalidateOnAnimation();
+        Compat.postInvalidateOnAnimation(this);
     }
 
     private void ensureCapacity(int n) {

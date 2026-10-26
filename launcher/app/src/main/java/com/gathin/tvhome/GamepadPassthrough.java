@@ -1,5 +1,6 @@
 package com.gathin.tvhome;
 
+import android.annotation.SuppressLint;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Context;
@@ -14,6 +15,7 @@ import android.view.InputDevice;
  * Off by default (gamepad_passthrough). Started only with key_filter on too: with it off the services never filter,
  * and this must not turn filtering back on.
  */
+@SuppressLint("NewApi")
 final class GamepadPassthrough implements InputManager.InputDeviceListener {
     private final AccessibilityService service;
     private final InputManager input;

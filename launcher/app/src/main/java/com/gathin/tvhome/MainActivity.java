@@ -1,5 +1,6 @@
 package com.gathin.tvhome;
 
+import android.annotation.SuppressLint;
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
@@ -35,6 +36,7 @@ import android.media.tv.TvInputManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.net.NetworkRequest;
 import android.net.Uri;
 import android.net.wifi.WifiInfo;
@@ -301,51 +303,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
-    /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
-    private final ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
+    /** API 21+ network watcher; null on older sets, where the CONNECTIVITY_ACTION receiver below updates the pill. */
+    private Object networkWatcher;   // NetworkWatcher (API 21), boxed so Android 4.0 never resolves its callback types
+    /** API 21+ input add/remove watcher; null on Android 4.0, where the Inputs menu uses the configured source panel. */
+    private Object tvInputWatcher;   // TvInputWatcher (API 21), boxed for the same reason
+    /** Android 4.0-4.4 equivalent of NetworkWatcher: one broadcast per connectivity change. */
+    private final BroadcastReceiver legacyNetworkReceiver = new BroadcastReceiver() {
         @Override
-        public void onAvailable(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
-        }
-
-        @Override
-        public void onLost(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
-        }
-
-        /** wifi_status_warnings follows validation; signal-strength updates also land here, so skip those. */
-        private boolean lastValidated;
-
-        @Override
-        public void onCapabilitiesChanged(@NonNull Network network, @NonNull NetworkCapabilities caps) {
-            boolean validated = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
-            if (validated == lastValidated) return;
-            lastValidated = validated;
-            if (wifiNoInternetTint != null) handler.post(MainActivity.this::updateWifiLabel);
-        }
-    };
-    /** Shows the Inputs pill once the TV registers an input: at boot HDMI inputs can appear after Home is shown. */
-    private final TvInputManager.TvInputCallback inputCallback = new TvInputManager.TvInputCallback() {
-        @Override
-        public void onInputAdded(String inputId) {
-            updateInputsButton();
-        }
-
-        @Override
-        public void onInputRemoved(String inputId) {
-            updateInputsButton();
-        }
-    };
-    /** Listens for any VPN coming up or going down, even one this app's traffic is excluded from. */
-    private final ConnectivityManager.NetworkCallback vpnCallback = new ConnectivityManager.NetworkCallback() {
-        @Override
-        public void onAvailable(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
-        }
-
-        @Override
-        public void onLost(@NonNull Network network) {
-            handler.post(MainActivity.this::updateWifiLabel);
+        public void onReceive(Context context, Intent intent) {
+            updateWifiLabel();
         }
     };
     private final IntentFilter packageFilter = new IntentFilter();
@@ -442,7 +408,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         ambient = findViewById(R.id.ambient);
         // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
         // a fade renders it into a full-screen offscreen buffer first.
-        ambient.forceHasOverlappingRendering(false);
+        Compat.forceHasOverlappingRendering(ambient, false);
         ambientGlow = cfg.ambientGlow;
         appGlow = cfg.appGlow;
         if (!ambientGlow) ambient.setVisibility(View.GONE);
@@ -450,7 +416,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         hero = findViewById(R.id.hero);
         // The hero is now a group (name, and the cinematic lines): without this every fade of the default
         // shelf would render it through an offscreen buffer first, as the glow above notes.
-        hero.forceHasOverlappingRendering(false);
+        Compat.forceHasOverlappingRendering(hero, false);
         heroMeta = findViewById(R.id.heroMeta);
         heroDots = findViewById(R.id.heroDots);
         heroArt = findViewById(R.id.heroArt);
@@ -639,7 +605,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     grid.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
                         @Override
                         public void onGlobalLayout() {
-                            grid.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                            Compat.removeOnGlobalLayoutListener(grid.getViewTreeObserver(), this);
                             int pos = Math.max(0, Math.min(lastFocused, adapter.appCount() - 1));
                             RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
                             View card = vh == null ? null : vh.itemView.findViewById(R.id.card);
@@ -718,7 +684,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         launcherSettingsButton = cfg.launcherSettingsButton;
         if (launcherSettingsButton) {
             ((TextView) btnSettings).setText(R.string.launcher_settings);
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_home_settings_pill, 0, 0, 0);
+            Compat.setCompoundDrawablesRelativeWithIntrinsicBounds((TextView) btnSettings, R.drawable.ic_home_settings_pill, 0, 0, 0);
         }
         btnSettings.setOnClickListener(v -> {
             if (launcherSettingsButton) startActivityForResult(
@@ -742,11 +708,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         topMenu = cfg.topMenu;
         wifiIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
         if (cfg.wifiStatusColor) {
-            wifiPlainTint = btnWifi.getCompoundDrawableTintList();
-            wifiOnlineTint = getColorStateList(R.color.pill_icon_online);
+            wifiPlainTint = Compat.getCompoundDrawableTintList(btnWifi);
+            wifiOnlineTint = Compat.getColorStateList(this, R.color.pill_icon_online);
             if (cfg.wifiStatusWarnings) {
-                wifiNoInternetTint = getColorStateList(R.color.pill_icon_no_internet);
-                wifiOfflineTint = getColorStateList(R.color.pill_icon_offline);
+                wifiNoInternetTint = Compat.getColorStateList(this, R.color.pill_icon_no_internet);
+                wifiOfflineTint = Compat.getColorStateList(this, R.color.pill_icon_offline);
             }
         }
         if (cfg.topMenu) {
@@ -756,7 +722,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             btnInputs.setVisibility(View.GONE);
             btnWifi.setVisibility(View.GONE);
             ((TextView) btnSettings).setText(R.string.settings);
-            ((TextView) btnSettings).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
+            Compat.setCompoundDrawablesRelativeWithIntrinsicBounds((TextView) btnSettings, R.drawable.ic_settings, 0, 0, 0);
             if (!iconOnlyButtons) makeIconOnly((TextView) btnSettings);
             btnSettings.setOnClickListener(v -> showTopMenu());
             // The lone gear sits at the header's middle, not on its bottom line like the row of pills.
@@ -832,15 +798,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             registerReceiver(packageReceiver, packageFilter);
         }
 
-        ConnectivityManager cm = getSystemService(ConnectivityManager.class);
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        if (tim != null) tim.registerCallback(inputCallback, handler);
-        if (cm != null) {
-            cm.registerDefaultNetworkCallback(networkCallback);
-            cm.registerNetworkCallback(new NetworkRequest.Builder()
-                    .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
-                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-                    .build(), vpnCallback);
+        // NetworkCallback and TvInputManager are API 21; on Android 4.0 the legacy receiver and the
+        // configured input-source panel take over. Each helper class is only loaded behind this check.
+        if (Compat.atLeast(21)) {
+            TvInputWatcher inputs = new TvInputWatcher(this::updateInputsButton);
+            inputs.start(this, handler);
+            tvInputWatcher = inputs;
+            networkWatcher = NetworkWatcher.start(this, this::updateWifiLabel);
+        } else {
+            registerReceiver(legacyNetworkReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
         }
         // Not after recreate(): the launch intent survives it and would open the settings again.
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent())) openInputsIfAsked(getIntent());
@@ -871,7 +837,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         setIntent(new Intent(Intent.ACTION_MAIN));
         View anchor = topMenu ? findViewById(R.id.btnSettings) : btnInputs;
         if (anchor.getVisibility() != View.VISIBLE) return true;
-        if (anchor.isLaidOut()) {
+        if (Compat.isLaidOut(anchor)) {
             // Android 9 delivers a new intent to a paused activity with a brief resume and pause around it, and
             // onPause() closes popups, so open the menu once that has run (HiSmartTV A4, Android TV 9).
             anchor.post(() -> {
@@ -885,7 +851,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         anchor.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                anchor.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                Compat.removeOnGlobalLayoutListener(anchor.getViewTreeObserver(), this);
                 anchor.post(() -> {
                     if (isFinishing() || anchor.getVisibility() != View.VISIBLE) return;
                     anchor.requestFocus();
@@ -1087,11 +1053,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** True when PackageManager reports apps changed since the last rebuild (one binder call). */
     private boolean packagesChangedSinceRebuild() {
+        // PackageManager.getChangedPackages and ChangedPackages are API 26; the package broadcast below
+        // already marks the tiles stale on older sets, so the extra check is simply skipped.
+        if (Build.VERSION.SDK_INT < 26) return false;
         ChangedPackages changed = getPackageManager().getChangedPackages(packageSequence);
         return changed != null && !changed.getPackageNames().isEmpty();
     }
 
     private int currentPackageSequence(int since) {
+        if (Build.VERSION.SDK_INT < 26) return since;
         ChangedPackages changed = getPackageManager().getChangedPackages(since);
         return changed != null ? changed.getSequenceNumber() : since;
     }
@@ -1218,12 +1188,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onDestroy();
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
-        ConnectivityManager cm = getSystemService(ConnectivityManager.class);
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        if (tim != null) tim.unregisterCallback(inputCallback);
-        if (cm != null) {
-            cm.unregisterNetworkCallback(networkCallback);
-            cm.unregisterNetworkCallback(vpnCallback);
+        if (tvInputWatcher != null) ((TvInputWatcher) tvInputWatcher).stop();
+        if (networkWatcher != null) {
+            ((NetworkWatcher) networkWatcher).stop();
+        } else {
+            try {
+                unregisterReceiver(legacyNetworkReceiver);
+            } catch (RuntimeException ignored) {
+            }
         }
     }
 
@@ -1571,13 +1543,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * change fires for a moved tile, so focusTile's already-focused path calls onTileFocused itself.
      */
     private void refocusAfterLayout(int pos) {
-        grid.postOnAnimation(new Runnable() {
+        Compat.postOnAnimation(grid, new Runnable() {
             int frames;
 
             @Override
             public void run() {
                 if ((grid.hasPendingAdapterUpdates() || grid.isLayoutRequested()) && ++frames < 10) {
-                    grid.postOnAnimation(this);
+                    Compat.postOnAnimation(grid, this);
                     return;
                 }
                 focusTile(pos);
@@ -1709,7 +1681,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Refits the glass to the focused holder once the grid layout and tile dimensions settle. */
     private void refitGlass() {
-        if (isDestroyed() || adapter.appCount() == 0 || libraryFocusPending) return;
+        if (Compat.isDestroyed(this) || adapter.appCount() == 0 || libraryFocusPending) return;
         int pos = Math.max(0, Math.min(lastFocused, adapter.appCount() - 1));
         RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
         View card = vh == null ? null : vh.itemView.findViewById(R.id.card);
@@ -1764,7 +1736,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             heroShown = true;
         } else if (changed) {
             if (advancedEffects) hero.animate().cancel();
-            hero.animate().alpha(0f).translationX(-12 * density).setDuration(120).withEndAction(() -> {
+            Compat.withEndAction(hero.animate().alpha(0f).translationX(-12 * density).setDuration(120), () -> {
                 fillHero(position, label);
                 hero.setY(y);
                 hero.setTranslationX(12 * density);
@@ -1773,7 +1745,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (ambientGlow && advancedEffects) {
                 transitionAmbient(color);
             } else if (ambientGlow && color != ambientColor) {
-                ambient.animate().alpha(0.35f).setDuration(200).withEndAction(() -> {
+                Compat.withEndAction(ambient.animate().alpha(0.35f).setDuration(200), () -> {
                     setAmbient(color);
                     ambient.animate().alpha(1f).setDuration(500).start();
                 }).start();
@@ -1805,18 +1777,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     private void setUpCinematicShelf(int scrimPercent) {
         heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 68f);
-        heroName.setLetterSpacing(-0.025f);
+        Compat.setLetterSpacing(heroName, -0.025f);
         heroMeta.setVisibility(View.INVISIBLE);   // keeps its height, so the name does not jump when it fills in
         heroDots.setVisibility(heroDotsShown ? View.VISIBLE : View.GONE);
         heroArt.setVisibility(heroArtAlpha > 0f ? View.VISIBLE : View.GONE);
         // One stretched bitmap: apply its alpha while drawing instead of through an offscreen buffer.
-        heroArt.forceHasOverlappingRendering(false);
+        Compat.forceHasOverlappingRendering(heroArt, false);
         if (scrimPercent <= 0) return;   // cinematic_scrim 0: no scrim at all
         View scrim = findViewById(R.id.heroScrim);
         Drawable shade = scrimDrawable();
         // On the bitmap's paint, not the view: a view's alpha would draw the full screen through an offscreen buffer.
         shade.setAlpha(scrimPercent * 255 / 100);
-        scrim.setBackground(shade);
+        Compat.setBackground(scrim, shade);
         scrim.setVisibility(View.VISIBLE);
     }
 
@@ -1863,7 +1835,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             fadeHeroArt(600);
             return;
         }
-        heroArt.animate().alpha(0f).setDuration(140).withEndAction(() -> {
+        Compat.withEndAction(heroArt.animate().alpha(0f).setDuration(140), () -> {
             heroArt.setImageBitmap(next);
             heroArt.animate().alpha(heroArtAlpha).setDuration(420).start();
         }).start();
@@ -1901,7 +1873,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 View dot = new View(this);
                 GradientDrawable bg = new GradientDrawable();
                 bg.setCornerRadius(3 * density);
-                dot.setBackground(bg);
+                Compat.setBackground(dot, bg);
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams((int) (6 * density), (int) (6 * density));
                 if (i > 0) lp.leftMargin = (int) (6 * density);
                 heroDots.addView(dot, lp);
@@ -1969,10 +1941,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             canvas.drawRect(0, 0, w, h, paint);
             glow = new BitmapDrawable(getResources(), bmp);
             glow.setGravity(Gravity.FILL);
-            ambient.setBackground(glow);
+            Compat.setBackground(ambient, glow);
         }
         // The default tint mode, SRC_IN, keeps the mask's alpha and takes the colour from the tint.
-        glow.setTint(0xFF000000 | color);
+        Compat.tint(glow, 0xFF000000 | color);
     }
 
     private void transitionAmbient(int color) {
@@ -2021,7 +1993,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return;
         }
         // The same dip-and-swap as the dock's top shelf.
-        ambient.animate().alpha(0.35f).setDuration(ambient.getAlpha() > 0.35f ? 200 : 0).withEndAction(() -> {
+        Compat.withEndAction(ambient.animate().alpha(0.35f)
+                .setDuration(ambient.getAlpha() > 0.35f ? 200 : 0), () -> {
             setAmbient(color);
             ambient.animate().alpha(1f).setDuration(500).start();
         }).start();
@@ -2121,7 +2094,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (mem != null) appendStat(line, getString(R.string.stats_memory, mem[0], mem[1]));
         String free = formatGb(getResources(), Environment.getDataDirectory().getFreeSpace());
         if (!free.isEmpty()) appendStat(line, getString(R.string.stats_storage, free));
-        return StatsText.forLocale(line.toString(), getResources().getConfiguration().getLocales().get(0));
+        return StatsText.forLocale(line.toString(), Compat.primaryLocale(getResources().getConfiguration()));
     }
 
     // -1: need another sample. -2: this source cannot be read (Android 9 hides /proc/stat from apps).
@@ -2342,8 +2315,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         PackageManager pm = getPackageManager();
         int size = Math.round(22 * density);
         for (String pkg : packages) {
-            Intent launch = pm.getLeanbackLaunchIntentForPackage(pkg);
-            if (launch == null) launch = pm.getLaunchIntentForPackage(pkg);
+            Intent launch = Compat.leanbackOrLaunch(pm, pkg);
             if (launch == null) continue;   // not installed, or disabled
             // Use the same configured launch_actions as tiles; retain the normal entry if unavailable.
             launch = LaunchActions.select(pkg, launchActions, launch, (targetPackage, action) -> {
@@ -2361,10 +2333,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             TextView button = (TextView) getLayoutInflater().inflate(R.layout.top_app_button, bar, false);
             // pillKeys finds the bar's ends by id: without one of its own, every app button would be an end.
-            button.setId(View.generateViewId());
+            button.setId(Compat.generateViewId());
             logo.setBounds(0, 0, size, size);
-            button.setCompoundDrawablesRelative(logo, null, null, null);
-            button.setCompoundDrawableTintList(null);
+            Compat.setCompoundDrawablesRelative(button, logo, null, null, null);
+            Compat.setCompoundDrawableTintList(button, null);
             button.setContentDescription(label);
             Intent target = launch;
             button.setOnClickListener(v -> open(new Intent(target)));
@@ -2492,7 +2464,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // Spain (es-ES) and Catalan: "Buenas tardes" into the evening; "Buenas noches" from 21.
         // Latin American Spanish (es-MX, es-AR, …) keeps the default hours: evening strings are also
         // «Buenas noches», and there «Buenas noches» from ~17 matches local use better than Spain's 21.
-        Locale locale = getResources().getConfiguration().getLocales().get(0);
+        Locale locale = Compat.primaryLocale(getResources().getConfiguration());
         String lang = locale.getLanguage();
         String country = locale.getCountry();
         if ("in".equals(lang) || "id".equals(lang)) {
@@ -2596,7 +2568,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 // Posted from inside the frame's traversal, so it runs after that frame is drawn. A post straight
                 // from onResume would run first: the frame is only scheduled after onResume returns.
                 handler.post(() -> {
-                    if (isDestroyed()) return;
+                    if (Compat.isDestroyed(MainActivity.this)) return;
                     updateWifiLabel();
                     updateInputsButton();
                 });
@@ -2617,20 +2589,44 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         try {
             ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
             boolean wifi = false, ethernet = false;
-            // All networks, not just the active one: with a VPN up the active network is the VPN itself.
-            for (Network net : cm != null ? cm.getAllNetworks() : new Network[0]) {
-                NetworkCapabilities caps = cm.getNetworkCapabilities(net);
-                if (caps == null) continue;
-                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
-                    vpn = true;
-                    continue;
+            if (Compat.atLeast(21)) {
+                // All networks, not just the active one: with a VPN up the active network is the VPN itself.
+                for (Network net : cm != null ? cm.getAllNetworks() : new Network[0]) {
+                    NetworkCapabilities caps = cm.getNetworkCapabilities(net);
+                    if (caps == null) continue;
+                    if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                        vpn = true;
+                        continue;
+                    }
+                    if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue;
+                    online = true;
+                    // Android reached the internet through it; a captive portal stays unvalidated until login.
+                    if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) validated = true;
+                    if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) ethernet = true;
+                    if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) wifi = true;
                 }
-                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue;
-                online = true;
-                // Android reached the internet through it; a captive portal stays unvalidated until login.
-                if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) validated = true;
-                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) ethernet = true;
-                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) wifi = true;
+            } else {
+                // Android 4.0: NetworkInfo is all there is. No validated flag before API 23, so a connected
+                // network counts as online (a captive portal cannot be told apart).
+                NetworkInfo active = cm != null ? cm.getActiveNetworkInfo() : null;
+                online = active != null && active.isConnected();
+                validated = online;
+                if (active != null) {
+                    wifi = active.getType() == ConnectivityManager.TYPE_WIFI;
+                    ethernet = active.getType() == ConnectivityManager.TYPE_ETHERNET;
+                }
+                if (cm != null) {
+                    NetworkInfo[] all = cm.getAllNetworkInfo();
+                    if (all != null) {
+                        for (NetworkInfo info : all) {
+                            if (info != null && info.isConnected()
+                                    && info.getType() == ConnectivityManager.TYPE_VPN) {
+                                vpn = true;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             if (!online) {
                 text = getString(R.string.offline);
@@ -2658,16 +2654,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if ((vpn || vpnDown) && !vpnPill) {
             // Network name, then the green lock-and-VPN (or red "VPN off") capsule drawn in place of the word.
             String badge = getString(vpn ? R.string.vpn : R.string.vpn_off);
-            VpnBadge span = new VpnBadge(vpn ? getDrawable(R.drawable.ic_lock) : null, density);
+            VpnBadge span = new VpnBadge(vpn ? Compat.getDrawable(this, R.drawable.ic_lock) : null, density);
             // The pill has a maximum width and ellipsizes at the end, which would cut the badge off after
             // a long network name, so shorten the name to whatever room the badge leaves. The Wi-Fi icon and its
             // gap are counted by hand: until the pill has a resolved layout direction (the first call, from
             // onResume, runs before that) getTotalPaddingStart/End leave the compound drawables out, which
             // left the name about 31dp too much room and the badge cut off.
             TextPaint paint = btnWifi.getPaint();
-            Drawable[] compound = btnWifi.getCompoundDrawablesRelative();
+            Drawable[] compound = Compat.getCompoundDrawablesRelative(btnWifi);
             int iconRoom = compound[0] != null ? compound[0].getIntrinsicWidth() + btnWifi.getCompoundDrawablePadding() : 0;
-            float room = btnWifi.getMaxWidth() - btnWifi.getPaddingStart() - btnWifi.getPaddingEnd() - iconRoom
+            float room = Compat.getMaxWidth(btnWifi) - Compat.getPaddingStart(btnWifi) - Compat.getPaddingEnd(btnWifi) - iconRoom
                     - span.getSize(paint, badge, 0, badge.length(), null) - paint.measureText(" ") - 2 * density;
             String name = TextUtils.ellipsize(text, paint, Math.max(0, room), TextUtils.TruncateAt.END).toString();
             // A long badge ("VPN отключён") can leave room for a stub like "MT…", which says nothing and, after
@@ -2694,13 +2690,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else {
             if (icon != wifiIcon) {
                 wifiIcon = icon;
-                btnWifi.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+                Compat.setCompoundDrawablesRelativeWithIntrinsicBounds(btnWifi, icon, 0, 0, 0);
             }
             ColorStateList tint = online ? wifiOnlineTint : wifiPlainTint;
             // wifi_status_warnings: orange while connected but not validated (a captive portal), red while offline.
             if (wifiNoInternetTint != null) tint = !online ? wifiOfflineTint : validated ? wifiOnlineTint : wifiNoInternetTint;
-            if (wifiOnlineTint != null && btnWifi.getCompoundDrawableTintList() != tint) {
-                btnWifi.setCompoundDrawableTintList(tint);
+            if (wifiOnlineTint != null && Compat.getCompoundDrawableTintList(btnWifi) != tint) {
+                Compat.setCompoundDrawableTintList(btnWifi, tint);
             }
         }
     }
@@ -2731,7 +2727,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         pill.setText(null);
         pill.setMaxWidth(Integer.MAX_VALUE);
         int pad = Math.round(10 * density);
-        pill.setPaddingRelative(pad, 0, pad, 0);
+        Compat.setPaddingRelative(pill, pad, 0, pad, 0);
         pill.setCompoundDrawablePadding(0);
         pill.getLayoutParams().width = Math.round(42 * density);
     }
@@ -2758,8 +2754,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private static void setFestiveIcon(TextView pill, Drawable icon) {
         // The pills tint their icons to follow focus; the festive ones keep their own colours.
-        pill.setCompoundDrawableTintList(null);
-        pill.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
+        Compat.setCompoundDrawableTintList(pill, null);
+        Compat.setCompoundDrawablesRelativeWithIntrinsicBounds(pill, icon, null, null, null);
     }
 
     /** Runs {@code action} when the view gains focus, keeping any focus listener it already had. */
@@ -2772,7 +2768,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void playPetalShower() {
-        if (isFinishing() || isDestroyed()) return;
+        if (isFinishing() || Compat.isDestroyed(this)) return;
         PetalShowerView shower = new PetalShowerView(this);
         root.addView(shower, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -2799,8 +2795,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** vpn_app's launch intent, or null when none is set or it is not installed. */
     private Intent vpnAppIntent() {
         if (vpnApp.isEmpty()) return null;
-        Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(vpnApp);
-        return i != null ? i : getPackageManager().getLaunchIntentForPackage(vpnApp);
+        return Compat.leanbackOrLaunch(getPackageManager(), vpnApp);
     }
 
     /**
@@ -2834,9 +2829,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             ColorStateList ink = ColorStateList.valueOf(up ? VpnBadge.INK : VpnBadge.INK_OFF);
             btnVpn.setText(up ? R.string.vpn : R.string.vpn_off);
             btnVpn.setTextColor(ink);
-            btnVpn.setBackground(VpnBadge.pillBackground(up, density));
-            btnVpn.setCompoundDrawablesRelativeWithIntrinsicBounds(up ? R.drawable.ic_lock : 0, 0, 0, 0);
-            btnVpn.setCompoundDrawableTintList(ink);
+            Compat.setBackground(btnVpn, VpnBadge.pillBackground(up, density));
+            Compat.setCompoundDrawablesRelativeWithIntrinsicBounds(btnVpn, up ? R.drawable.ic_lock : 0, 0, 0, 0);
+            Compat.setCompoundDrawableTintList(btnVpn, ink);
         }
         btnVpn.setVisibility(View.VISIBLE);
     }
@@ -2848,6 +2843,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /** Hides the Inputs pill when it would have nothing to list: streaming boxes have no HDMI-in, AV or tuner. */
+    @SuppressLint("NewApi")   // TvInputManager block runs only on API 21+
     private void updateInputsButton() {
         if (!showInputsPill) {
             btnInputs.setVisibility(View.GONE);
@@ -2855,13 +2851,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         boolean any = liveTvIntent() != null || !sourcePanelService.isEmpty()
                 || (coocaaSources && !CoocaaSources.list(this).isEmpty());
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        if (!any && tim != null) {
-            for (TvInputInfo info : tim.getTvInputList()) {
-                // Inputs hidden in Settings > Inputs are left out of the menu, so they don't count here either.
-                if (info.isPassthroughInput() && !info.isHidden(this)) {
-                    any = true;
-                    break;
+        // TvInputManager is API 21; before it the configured source panel / Live TV row is the whole menu.
+        if (Compat.atLeast(21)) {
+            TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+            if (!any && tim != null) {
+                for (TvInputInfo info : tim.getTvInputList()) {
+                    // Inputs hidden in Settings > Inputs are left out of the menu, so they don't count here either.
+                    if (info.isPassthroughInput() && !(Compat.atLeast(24) && info.isHidden(this))) {
+                        any = true;
+                        break;
+                    }
                 }
             }
         }
@@ -2890,7 +2889,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The Live TV app's launch intent: its leanback entry point, or the configured action if it has none. */
     private Intent liveTvIntent() {
         if (liveTvPkg.isEmpty()) return null;
-        Intent i = getPackageManager().getLeanbackLaunchIntentForPackage(liveTvPkg);
+        Intent i = Compat.leanbackOrLaunch(getPackageManager(), liveTvPkg);
         if (i != null || liveTvAction.isEmpty()) return i;
         Intent byAction = new Intent(liveTvAction).setPackage(liveTvPkg);
         return getPackageManager().resolveActivity(byAction, 0) != null ? byAction : null;
@@ -2946,16 +2945,19 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      *  with that scheme and no MIME type. A player guarded by a permission this build does not declare
      *  throws SecurityException, which used to take Home down with it (YaOS before the manifest asked
      *  for ACCESS_TV_SOURCE). */
+    @SuppressLint("NewApi")   // TvInputManager/TvContract branches run only on API 21+
     private void openInput(String inputId) {
         // A CEC device is a child input of its HDMI port; the vendor source number belongs to the port
         // (MiTV-MFFU0). Only that lookup uses the parent: the generic path below still opens the child.
         String sourceId = inputId;
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        if (tim != null) {
-            try {
-                TvInputInfo info = tim.getTvInputInfo(inputId);
-                if (info != null && info.getParentId() != null) sourceId = info.getParentId();
-            } catch (RuntimeException ignored) {
+        if (Compat.atLeast(21)) {
+            TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+            if (tim != null) {
+                try {
+                    TvInputInfo info = tim.getTvInputInfo(inputId);
+                    if (info != null && info.getParentId() != null) sourceId = info.getParentId();
+                } catch (RuntimeException ignored) {
+                }
             }
         }
         Integer source = mappedSource(sourceId);
@@ -2967,6 +2969,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             } catch (ActivityNotFoundException | SecurityException e) {
                 // fall through to the standard way
             }
+        }
+        // TvContract (and the channel URI an HDMI input opens with) is API 21. On Android 4.0 the
+        // vendor input_action above is the only route, so say so instead of calling a missing class.
+        if (!Compat.atLeast(21)) {
+            Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
+            return;
         }
         Uri uri = TvContract.buildChannelUriForPassthroughInput(inputId);
         Intent view = (inputUriScheme.isEmpty()
@@ -2995,6 +3003,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
+    @SuppressLint("NewApi")   // TvInputManager/TvContract block runs only on API 21+
     private void showInputs() {
         // A configured source panel and no Live TV row to offer next to it: the panel is the whole menu.
         // The BYINTEK U4 needs this, as its TvInputManager lists three HDMI ports and an AV input it doesn't have.
@@ -3015,7 +3024,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int width = Math.max(anchor.getWidth(), (int) (150 * density));
         final PopupWindow popup = glassPopup(panel, width);
 
-        TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
+        // TvInputManager is API 21: null on Android 4.0, so the list falls through to the configured source panel.
+        TvInputManager tim = Compat.atLeast(21) ? (TvInputManager) getSystemService(TV_INPUT_SERVICE) : null;
         // inputs_connected_only: ports without a connected device and the AV jacks fold behind a "More inputs" row.
         boolean connectedOnly = inputsConnectedOnly;
         List<View> folded = new ArrayList<>();
@@ -3041,7 +3051,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             for (TvInputInfo info : inputs) {
                 String parent = info.getParentId();
                 if (parent == null || !inputIds.contains(parent)) continue;
-                if (!info.isPassthroughInput() || info.isHidden(this)) continue;
+                if (!info.isPassthroughInput() || (Compat.atLeast(24) && info.isHidden(this))) continue;
                 List<TvInputInfo> onPort = cecDevices.get(parent);
                 if (onPort == null) cecDevices.put(parent, onPort = new ArrayList<>());
                 onPort.add(info);
@@ -3079,7 +3089,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     }
                 }
                 // Inputs hidden in the TV's Settings > Inputs stay out of the menu too.
-                if (!info.isPassthroughInput() || info.isHidden(this)) continue;
+                if (!info.isPassthroughInput() || (Compat.atLeast(24) && info.isHidden(this))) continue;
                 // input_sources can leave out ports the board reports but the set does not have ("HW8=-").
                 if (Integer.valueOf(-1).equals(mappedSource(info.getId()))) continue;
                 // A CEC device's row is added with its port, below.
@@ -3088,7 +3098,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 String label = l == null ? info.getId() : l.toString();
                 boolean hdmi = info.getType() == TvInputInfo.TYPE_HDMI;
                 if (hdmi && !label.toUpperCase(Locale.ROOT).contains("HDMI")) label = "HDMI " + label;
-                CharSequence custom = InputNames.tidy(info.loadCustomLabel(this));
+                CharSequence custom = InputNames.tidy(Compat.atLeast(24) ? info.loadCustomLabel(this) : null);
                 boolean named = custom != null && custom.length() > 0 && !custom.toString().equals(label);
                 if (!hdmi && rows.getChildCount() > 0 && !sawNonHdmi) {
                     View line = addSeparator(rows);
@@ -3101,7 +3111,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     // Settings > Inputs), then the port. Opening the device's input also makes it the CEC
                     // active source, which wakes it.
                     for (TvInputInfo device : devices) {
-                        CharSequence name = InputNames.tidy(device.loadCustomLabel(this));
+                        CharSequence name = InputNames.tidy(Compat.atLeast(24) ? device.loadCustomLabel(this) : null);
                         if (name == null || name.length() == 0) name = named ? custom : device.loadLabel(this);
                         String deviceLabel = name == null || name.length() == 0 ? label : name + " \u00B7 " + label;
                         final String deviceId = device.getId();
@@ -3203,7 +3213,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
         popup.setOutsideTouchable(true);
         popup.setAnimationStyle(0);
-        popup.setElevation(0f);
+        Compat.setElevation(popup, 0f);
         popup.setOnDismissListener(() -> {
             if (openPopup == popup) openPopup = null;
         });
@@ -3217,7 +3227,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         panel.setPivotY(0f);
         panel.setScaleY(0.92f);
         panel.setTranslationY(-8 * density);
-        popup.showAsDropDown(anchor, 0, (int) (10 * density), gravity);
+        if (Compat.atLeast(19)) popup.showAsDropDown(anchor, 0, (int) (10 * density), gravity);
+        else popup.showAsDropDown(anchor, 0, (int) (10 * density));
         panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(reducedMotion ? Motion.REDUCED_MS : 220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
     }
@@ -3424,7 +3435,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         View panel = getLayoutInflater().inflate(R.layout.dialog_card_prompt, root, false);
         boolean rtl = getResources().getBoolean(R.bool.rtl_menu_bar);
-        if (rtl) panel.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        if (rtl) Compat.setLayoutDirection(panel, View.LAYOUT_DIRECTION_RTL);
         ((TextView) panel.findViewById(R.id.title)).setText(getString(R.string.card_prompt_title, card.appLabel));
         ((TextView) panel.findViewById(R.id.body)).setText(card.state == Cards.State.RESIGNED
                 ? getString(R.string.card_prompt_resigned, card.appLabel)
@@ -3517,7 +3528,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         View anchor = findViewById(R.id.btnSettings);
         View panel = getLayoutInflater().inflate(R.layout.popup_cards, root, false);
         if (getResources().getBoolean(R.bool.rtl_menu_bar))
-            panel.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            Compat.setLayoutDirection(panel, View.LAYOUT_DIRECTION_RTL);
         LinearLayout rows = panel.findViewById(R.id.rows);
         final PopupWindow popup = glassPopup(panel, (int) (400 * density));
         List<Cards.Card> listed = new ArrayList<>(cards);

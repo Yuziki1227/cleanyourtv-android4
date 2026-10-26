@@ -36,6 +36,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -155,7 +156,7 @@ final class AppLibraryDialog {
         this.dismissed = dismissed;
         density = activity.getResources().getDisplayMetrics().density;
         panel = new LinearLayout(activity);
-        panel.setLayoutDirection(rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+        Compat.setLayoutDirection(panel, rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(12), dp(8), dp(12), dp(12));
         panel.setBackgroundResource(R.drawable.glass_panel);
@@ -276,7 +277,7 @@ final class AppLibraryDialog {
         }
         catalogTime = System.currentTimeMillis();
         Collator collator = Collator.getInstance();
-        apps.sort((a, b) -> {
+        Collections.sort(apps, (a, b) -> {
             String pa = a.activityInfo.packageName, pb = b.activityInfo.packageName;
             if (selectionMode) return LibraryApps.compareCatalog(home.get(pa), label(a), pa,
                     home.get(pb), label(b), pb, collator);
@@ -320,7 +321,7 @@ final class AppLibraryDialog {
             main.post(() -> {
                 iconsLoading.remove(pkg);
                 if (closed) return;
-                Drawable shown = result != null ? result : activity.getDrawable(R.drawable.ic_apps);
+                Drawable shown = result != null ? result : Compat.getDrawable(activity, R.drawable.ic_apps);
                 icons.put(pkg, shown);
                 // The view may show another app by now; a view bound to it later takes it from the cache.
                 if (pkg.equals(icon.getTag())) icon.setImageDrawable(shown);
@@ -375,10 +376,10 @@ final class AppLibraryDialog {
         }
         shelf = new FrameLayout(activity);
         // The glass uses physical x coordinates; only the catalogue mirrors its item order.
-        shelf.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        Compat.setLayoutDirection(shelf, View.LAYOUT_DIRECTION_LTR);
         shelf.setClipChildren(false);
         RecyclerView list = new RecyclerView(activity);
-        list.setLayoutDirection(rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
+        Compat.setLayoutDirection(list, rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
         catalog = list;
         list.setLayoutManager(new LinearLayoutManager(activity, RecyclerView.HORIZONTAL, false) {
             @Override protected boolean isLayoutRTL() { return rtl; }
@@ -393,7 +394,7 @@ final class AppLibraryDialog {
         highlight.setRadius(dp(20));
         highlight.setAlpha(0f);
         highlight.setFocusable(false);
-        highlight.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        Compat.setImportantForAccessibility(highlight, View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         shelf.addView(highlight, new FrameLayout.LayoutParams(dp(144), dp(180)));
         scrollOffset = 0;
         spring = new SpringAnimation(highlight, new FloatPropertyCompat<View>("libraryScrollX") {
@@ -518,7 +519,7 @@ final class AppLibraryDialog {
         menu.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         menu.setOutsideTouchable(true);
         menu.setAnimationStyle(0);
-        menu.setElevation(0f);
+        Compat.setElevation(menu, 0f);
         menu.setOnDismissListener(() -> {
             if (actionPopup == menu) actionPopup = null;
             restoreCardFocus();
@@ -586,7 +587,7 @@ final class AppLibraryDialog {
         view.setTextSize(size);
         view.setTextColor(color);
         view.setTypeface(UiFont.get(activity, R.string.font_medium));
-        view.setLetterSpacing(0.01f);
+        Compat.setLetterSpacing(view, 0.01f);
         view.setIncludeFontPadding(false);
         return view;
     }
@@ -638,15 +639,15 @@ final class AppLibraryDialog {
             name.setEllipsize(TextUtils.TruncateAt.END);
             TextView status = holder.itemView.findViewById(R.id.status);
             boolean home = onHome.test(pkg);
-            boolean recent = !selectionMode && LibraryApps.recent(installTimes.getOrDefault(pkg, 0L), catalogTime);
+            boolean recent = !selectionMode && LibraryApps.recent(installTimes.containsKey(pkg) ? installTimes.get(pkg) : 0L, catalogTime);
             status.setText(home ? R.string.library_on_home : recent ? R.string.library_recent : R.string.library_add_home);
             status.setVisibility(home || !okOpens ? View.VISIBLE : View.INVISIBLE);
-            holder.itemView.setBackground(surface(home ? 0x1475BBA4 : 0x0CFFFFFF, 18));
+            Compat.setBackground(holder.itemView, surface(home ? 0x1475BBA4 : 0x0CFFFFFF, 18));
             View check = holder.itemView.findViewById(R.id.dot);
             check.getLayoutParams().width = dp(home ? 18 : 8);
             check.getLayoutParams().height = dp(home ? 18 : 8);
             if (home) check.setBackgroundResource(R.drawable.library_check);
-            else check.setBackground(surface(0xFF70D9A0, 8));
+            else Compat.setBackground(check, surface(0xFF70D9A0, 8));
             check.setVisibility(home || recent ? View.VISIBLE : View.GONE);
             holder.itemView.setOnClickListener(v -> {
                 boolean onHomeNow = onHome.test(pkg);

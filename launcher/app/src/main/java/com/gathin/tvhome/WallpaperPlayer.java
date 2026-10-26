@@ -87,7 +87,7 @@ final class WallpaperPlayer {
         height = metrics.heightPixels;
         image = new ImageView(context);
         image.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        image.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        Compat.setImportantForAccessibility(image, View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         names = config.wallpaperCaptions && config.wallpaperEnabled && !files.isEmpty()
                 ? WallpaperCaptions.read(files.get(0).getParentFile()) : Collections.emptyMap();
         caption = names.isEmpty() ? null : makeCaption(context, root);
@@ -113,7 +113,7 @@ final class WallpaperPlayer {
             if (bitmap != null) {
                 show(bitmap);
                 // The picture covers the whole screen: the root's plain colour under it is overdraw.
-                root.setBackground(null);
+                Compat.setBackground(root, null);
                 displayed = first.getName();
                 showCaption(false);
                 if (!displayed.equals(previous)) {
@@ -226,7 +226,7 @@ final class WallpaperPlayer {
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
         params.topMargin = Math.round(110 * dp);
-        params.setMarginEnd(Math.round(62 * dp));
+        Compat.setMarginEnd(params, Math.round(62 * dp));
         root.addView(text, params);
         return text;
     }
@@ -246,7 +246,7 @@ final class WallpaperPlayer {
             caption.setAlpha(1f);
             return;
         }
-        caption.animate().alpha(0f).setDuration(250).withEndAction(() -> {
+        Compat.withEndAction(caption.animate().alpha(0f).setDuration(250), () -> {
             caption.setText(name);
             caption.animate().alpha(1f).setDuration(350).start();
         }).start();
@@ -264,7 +264,7 @@ final class WallpaperPlayer {
         Bitmap old = current;
         current = bitmap;
         // The wallpaper covers the whole root; avoid drawing the fallback colour under it.
-        root.setBackground(null);
+        Compat.setBackground(root, null);
         image.setImageBitmap(bitmap);
         if (old != null && old != bitmap) image.postDelayed(old::recycle, 500);
     }
@@ -293,7 +293,7 @@ final class WallpaperPlayer {
             if (dimColor != 0) new Canvas(decoded).drawColor(dimColor);
             // One copy in GPU memory instead of a software bitmap plus its texture; the decode stays off the UI
             // thread for rotations, and Home's return no longer uploads 4-8 MB to the GPU.
-            Bitmap gpu = decoded.copy(Bitmap.Config.HARDWARE, false);
+            Bitmap gpu = Compat.atLeast(26) ? decoded.copy(Bitmap.Config.HARDWARE, false) : null;
             if (gpu == null) return decoded;
             decoded.recycle();
             return gpu;

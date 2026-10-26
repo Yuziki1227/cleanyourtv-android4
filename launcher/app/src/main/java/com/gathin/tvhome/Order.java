@@ -1,13 +1,11 @@
 package com.gathin.tvhome;
 
 import android.content.Context;
-import android.util.AtomicFile;
 import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,7 +51,7 @@ final class Order {
     }
 
     static String dockKey(List<String> dockApps) {
-        return String.join(",", dockApps);
+        return Join.of(",", dockApps);
     }
 
     static String encode(Order order) {
@@ -114,7 +112,7 @@ final class Order {
         if (a == null && b == null) return 0;
         if (a == null) return 1;
         if (b == null) return -1;
-        return Integer.compare(a, b);
+        return Compat.compare(a, b);
     }
 
     // ---- file ------------------------------------------------------------------------------------
@@ -127,7 +125,7 @@ final class Order {
     static Order load(File file) {
         if (!file.exists()) return null;
         try {
-            Order o = decode(new String(new AtomicFile(file).readFully(), StandardCharsets.UTF_8));
+            Order o = decode(new String(new AtomicFile(file).readFully(), Charsets.UTF_8));
             if (o == null) Log.w(TAG, file.getName() + " is not valid; ignored");
             return o;
         } catch (IOException e) {
@@ -142,7 +140,7 @@ final class Order {
         FileOutputStream out = null;
         try {
             out = af.startWrite();
-            out.write(encode(order).getBytes(StandardCharsets.UTF_8));
+            out.write(encode(order).getBytes(Charsets.UTF_8));
             af.finishWrite(out);
             return true;
         } catch (IOException e) {

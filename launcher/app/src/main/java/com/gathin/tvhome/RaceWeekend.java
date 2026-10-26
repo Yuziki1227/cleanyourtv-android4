@@ -86,7 +86,7 @@ final class RaceWeekend {
             this.name = name;
             this.place = place;
             List<Session> sorted = new ArrayList<>(sessions);
-            sorted.sort((a, b) -> a.start.compareTo(b.start));
+            Collections.sort(sorted, (a, b) -> a.start.compareTo(b.start));
             this.sessions = Collections.unmodifiableList(sorted);
         }
 

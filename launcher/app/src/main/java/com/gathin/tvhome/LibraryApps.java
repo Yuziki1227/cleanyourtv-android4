@@ -1,7 +1,6 @@
 package com.gathin.tvhome;
 
 import android.content.Context;
-import android.util.AtomicFile;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
@@ -9,7 +8,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.text.Collator;
 import java.util.Collections;
 import java.util.HashSet;
@@ -54,7 +52,7 @@ final class LibraryApps {
                 if (bytes.size() + count > MAX_BYTES) throw new IOException("Shortcut file too large");
                 bytes.write(buffer, 0, count);
             }
-            return decode(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+            return decode(new String(bytes.toByteArray(), Charsets.UTF_8));
         }
     }
 
@@ -82,7 +80,7 @@ final class LibraryApps {
         FileOutputStream output = null;
         try {
             Set<String> next = change(saved, pkg, added);
-            byte[] bytes = encode(next).getBytes(StandardCharsets.UTF_8);
+            byte[] bytes = encode(next).getBytes(Charsets.UTF_8);
             output = file.startWrite();
             output.write(bytes);
             file.finishWrite(output);
@@ -123,7 +121,7 @@ final class LibraryApps {
         if (homeA) return 0;
         boolean recentA = recent(installedA, now), recentB = recent(installedB, now);
         if (recentA != recentB) return recentA ? -1 : 1;
-        return recentA ? Long.compare(installedB, installedA) : 0;
+        return recentA ? Compat.compare(installedB, installedA) : 0;
     }
 
     /** After adding a shortcut, prefer another missing app; otherwise stay by a neighbour. */
@@ -139,7 +137,7 @@ final class LibraryApps {
 
     /** Checked Home apps first, then apps hidden from Home; the caller sorts each group by label. */
     static int compareHomeGroup(boolean homeA, boolean homeB) {
-        return Boolean.compare(homeB, homeA);
+        return Compat.compare(homeB, homeA);
     }
 
     /** Keep the next neighbour when a shortcut moves away, or the previous one at the end. */

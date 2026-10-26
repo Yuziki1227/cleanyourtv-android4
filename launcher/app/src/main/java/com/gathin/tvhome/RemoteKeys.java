@@ -1,5 +1,6 @@
 package com.gathin.tvhome;
 
+import android.annotation.SuppressLint;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.ActivityNotFoundException;
@@ -37,6 +38,8 @@ import java.util.regex.Pattern;
  * "package/.Activity" opens that activity rather than the app's launcher entry (an add-on's quick bar, say).
  */
 final class RemoteKeys {
+    /** The mute toggle below API 23, where AudioManager.isStreamMute does not exist. */
+    private static boolean muted;
 
     /** How long a button is held before its "hold:" entry wins (Android's long-press timeout). */
     static final long HOLD_MS = 500;
@@ -117,6 +120,7 @@ final class RemoteKeys {
      * long-pressing volume then steps once per press. Filtering can only be skipped while the service
      * runs, since the flag is also declared in the manifest metadata.
      */
+    @SuppressLint("NewApi")   // guarded on API 16 below; lint cannot see through the helper
     static void applyKeyFilter(AccessibilityService service, boolean keyFilter) {
         if (keyFilter) return;
         AccessibilityServiceInfo info = service.getServiceInfo();
@@ -231,7 +235,9 @@ final class RemoteKeys {
 
         void down(String button, long eventTime, int repeatCount, String holdApp, Consumer<String> open) {
             if (repeatCount != 0) return;
-            Press press = buttons.computeIfAbsent(button, b -> new Press());
+            Press found = buttons.get(button);
+            final Press press = found == null ? new Press() : found;
+            if (found == null) buttons.put(button, press);
             if (press.downAt == eventTime) return;
             if (press.hold != null) timer.cancel(press.hold);   // its UP never came
             press.downAt = eventTime;
@@ -248,7 +254,9 @@ final class RemoteKeys {
 
         void up(String button, long eventTime, long downTime, boolean canceled, String app, String holdApp,
                 Consumer<String> open) {
-            Press press = buttons.computeIfAbsent(button, b -> new Press());
+            Press found = buttons.get(button);
+            final Press press = found == null ? new Press() : found;
+            if (found == null) buttons.put(button, press);
             if (press.upAt == eventTime) return;
             boolean sawDown = press.downAt > press.upAt;
             press.upAt = eventTime;
@@ -304,15 +312,22 @@ final class RemoteKeys {
         if (!isAction(target)) return false;
         int global = globalAction(target, Build.VERSION.SDK_INT);
         if (global != 0) {
-            if (ctx instanceof AccessibilityService) ((AccessibilityService) ctx).performGlobalAction(global);
+            if (ctx instanceof AccessibilityService && Compat.atLeast(16)) ((AccessibilityService) ctx).performGlobalAction(global);
             return true;
         }
         switch (target) {
             case "mute":
                 // The media stream a TV plays everything on, with its own volume bar, as a remote's mute button would.
-                AudioManager audio = ctx.getSystemService(AudioManager.class);
-                if (audio != null) audio.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                        AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI);
+                AudioManager audio = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+                if (audio != null) {
+                    if (Compat.atLeast(23)) {
+                        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                                AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI);
+                    } else {
+                        audio.setStreamMute(AudioManager.STREAM_MUSIC, !muted);
+                        muted = !muted;
+                    }
+                }
                 break;
             case "screensaver":
                 // The screensaver chosen in the TV's settings, through the system's "start now" shortcut; the
@@ -365,7 +380,7 @@ final class RemoteKeys {
             return;
         }
         String guide = guidePackage(pkg);
-        if (guide != null) {
+        if (guide != null && Compat.atLeast(21)) {
             // The program guide, asked for the way Android TV's Live TV apps take it: the programs directory.
             start(ctx, new Intent(Intent.ACTION_VIEW)
                     .setDataAndType(TvContract.Programs.CONTENT_URI, "vnd.android.cursor.dir/program")
@@ -373,7 +388,7 @@ final class RemoteKeys {
             return;
         }
         String inputId = inputId(pkg);
-        if (inputId != null) {
+        if (inputId != null && Compat.atLeast(21)) {
             // The same passthrough URI the Inputs menu opens, which the Live TV app handles.
             Intent view = new Intent(Intent.ACTION_VIEW)
                     .setDataAndType(TvContract.buildChannelUriForPassthroughInput(inputId),
@@ -393,8 +408,7 @@ final class RemoteKeys {
             }
             return;
         }
-        Intent open = ctx.getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
-        if (open == null) open = ctx.getPackageManager().getLaunchIntentForPackage(pkg);
+        Intent open = Compat.leanbackOrLaunch(ctx.getPackageManager(), pkg);
         if (open == null) return;
         try {
             ctx.startActivity(open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));

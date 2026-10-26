@@ -7,7 +7,9 @@
     android:orientation="vertical"
     android:background="@drawable/glass_panel"
     android:paddingStart="26dp"
+    android:paddingLeft="26dp"
     android:paddingEnd="26dp"
+    android:paddingRight="26dp"
     android:paddingTop="22dp"
     android:paddingBottom="20dp"
     android:elevation="12dp">
@@ -69,7 +71,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="18dp"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="right">
 
         <TextView
             android:id="@+id/btnKeep"

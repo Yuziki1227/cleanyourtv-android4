@@ -35,8 +35,11 @@ final class GuardKeep {
     }
 
     static boolean offInStandby(Context context) {
-        UserManager users = context.getSystemService(UserManager.class);
-        if (users != null && !users.isUserUnlocked()) return false;
+        // UserManager and isUserUnlocked are API 24; before that preference storage is always readable.
+        if (Compat.atLeast(24)) {
+            UserManager users = (UserManager) context.getSystemService(Context.USER_SERVICE);
+            if (users != null && !users.isUserUnlocked()) return false;
+        }
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_OFF, false);
     }
 
@@ -50,11 +53,10 @@ final class GuardKeep {
         // that arrives after that, so the first screen-off does nothing (Philips 65PUS8102).
         HomeKeyService.applyStandbyOptIn();
         if (!offInStandby(context)) return;
-        if (context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
-                != PackageManager.PERMISSION_GRANTED) return;
-        PowerManager power = context.getSystemService(PowerManager.class);
+        if (!Compat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS)) return;
+        PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         // Still off: binding the helper again would sit on the power key. Wait for the screen.
-        if (power != null && !power.isInteractive()) {
+        if (power != null && !Compat.isScreenOn(power)) {
             watchScreenOn(context.getApplicationContext());
             return;
         }
@@ -75,7 +77,7 @@ final class GuardKeep {
             if (!found) {
                 entries.add(mine.flattenToShortString());
                 Settings.Secure.putString(context.getContentResolver(),
-                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, String.join(":", entries));
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, Join.of(":", entries));
             }
             Settings.Secure.putInt(context.getContentResolver(), Settings.Secure.ACCESSIBILITY_ENABLED, 1);
         } catch (RuntimeException ignored) {
@@ -86,7 +88,8 @@ final class GuardKeep {
     /** Drops the service from the list and puts it back on the next SCREEN_ON. The process has to stay up. */
     static void stepOut(AccessibilityService service) {
         watchScreenOn(service.getApplicationContext());
-        service.disableSelf();
+        // disableSelf is API 24; the standby workaround is only needed on sets that new.
+        if (Compat.atLeast(24)) service.disableSelf();
     }
 
     private static void watchScreenOn(Context app) {

@@ -45,13 +45,13 @@ final class VolumeKeys {
         if (!changesPress(event.getAction(), event.getRepeatCount())) return true;
         stop();
         if (event.getAction() != KeyEvent.ACTION_DOWN) return true;
-        AudioManager audio = context.getSystemService(AudioManager.class);
+        AudioManager audio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         if (audio == null) return true;
         if (handler == null) handler = new Handler(Looper.getMainLooper());
         step = new Runnable() {
             @Override
             public void run() {
-                audio.adjustVolume(direction, AudioManager.FLAG_SHOW_UI);
+                audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI);
                 handler.postDelayed(this, REPEAT_INTERVAL_MS);
             }
         };

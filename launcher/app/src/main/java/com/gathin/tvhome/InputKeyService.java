@@ -30,7 +30,7 @@ public class InputKeyService extends AccessibilityService {
     /** consume_volume_keys: Volume Up/Down go to VolumeKeys instead of on to the firmware. */
     private boolean consumeVolumeKeys;
     /** Stops key filtering while a game controller is connected; null unless gamepad_passthrough and key_filter. */
-    private GamepadPassthrough gamepads;
+    private Object gamepads;   // GamepadPassthrough, API 16+; Object so Android 4.0 never resolves its InputManager supertype
 
     @Override
     protected void onServiceConnected() {
@@ -48,9 +48,9 @@ public class InputKeyService extends AccessibilityService {
         holdAppKeys = RemoteKeys.parseHoldAppKeys(config.appKeys);
         holdAppScancodes = RemoteKeys.parseHoldAppScancodes(config.appKeys);
         // gamepad_passthrough, off by default. Only with key_filter on: off, the service never filters keys.
-        if (config.gamepadPassthrough && config.keyFilter && gamepads == null) {
+        if (config.gamepadPassthrough && config.keyFilter && gamepads == null && Compat.atLeast(16)) {
             gamepads = new GamepadPassthrough(this);
-            gamepads.start();
+            ((GamepadPassthrough) gamepads).start();
         }
     }
 
@@ -87,7 +87,7 @@ public class InputKeyService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
-        if (gamepads != null) gamepads.stop();
+        if (gamepads != null) ((GamepadPassthrough) gamepads).stop();
         if (consumeVolumeKeys) VolumeKeys.stop();
         super.onDestroy();
     }

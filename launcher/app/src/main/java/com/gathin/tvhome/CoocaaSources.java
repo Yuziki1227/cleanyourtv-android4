@@ -49,8 +49,8 @@ final class CoocaaSources {
         } catch (RuntimeException e) {
             return Collections.emptyList();
         }
-        Collections.sort(out, (a, b) -> a.name.equals(b.name) ? Integer.compare(a.index, b.index)
-                : Integer.compare(rank(a.name), rank(b.name)));
+        Collections.sort(out, (a, b) -> a.name.equals(b.name) ? Compat.compare(a.index, b.index)
+                : Compat.compare(rank(a.name), rank(b.name)));
         return out;
     }
 

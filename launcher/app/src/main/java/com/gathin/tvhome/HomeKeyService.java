@@ -85,7 +85,7 @@ public class HomeKeyService extends AccessibilityService {
     /** power_on_home: re-arms after the screen turns on; null unless the key is on. */
     private BroadcastReceiver screenOnReceiver;
     /** Stops key filtering while a game controller is connected; null unless gamepad_passthrough and key_filter, or before the unlock. */
-    private GamepadPassthrough gamepads;
+    private Object gamepads;   // GamepadPassthrough, API 16+; Object so Android 4.0 never resolves its InputManager supertype
     /** Screen-off receiver while guard_off_in_standby is set; null otherwise. */
     private BroadcastReceiver standbyExit;
     /** disableSelf is how this service leaves for standby, not the user turning it off. */
@@ -101,8 +101,14 @@ public class HomeKeyService extends AccessibilityService {
         // The service is directBootAware: Android 11 skips a service that is not while the user is still
         // locked at boot, writes accessibility_enabled=0 and, on TCL G03 firmware, never binds it after the
         // unlock. Config.load reads credential-protected storage, so wait for the unlock before reading it.
-        UserManager users = getSystemService(UserManager.class);
-        if (users.isUserUnlocked()) {
+        // UserManager and isUserUnlocked are API 24. Android 4.0 has no direct-boot storage, so the
+        // config is readable at once.
+        if (!Compat.atLeast(24)) {
+            loadConfig();
+            return;
+        }
+        UserManager users = (UserManager) getSystemService(Context.USER_SERVICE);
+        if (users == null || users.isUserUnlocked()) {
             loadConfig();
             return;
         }
@@ -147,7 +153,7 @@ public class HomeKeyService extends AccessibilityService {
             }
             standbyExit = null;
         }
-        if (gamepads != null) gamepads.stop();
+        if (gamepads != null) ((GamepadPassthrough) gamepads).stop();
         if (consumeVolumeKeys) VolumeKeys.stop();
         super.onDestroy();
     }
@@ -163,8 +169,8 @@ public class HomeKeyService extends AccessibilityService {
             }
         };
         registerReceiver(standbyExit, new IntentFilter(Intent.ACTION_SCREEN_OFF));
-        PowerManager power = getSystemService(PowerManager.class);
-        if (power != null && !power.isInteractive()) leaveForStandby();
+        PowerManager power = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (power != null && !Compat.isScreenOn(power)) leaveForStandby();
     }
 
     private void disarmStandbyExit() {
@@ -221,7 +227,8 @@ public class HomeKeyService extends AccessibilityService {
             powerOnUntil = 0;
         }
         // home_key_service.xml subscribes to no events, so the redirects ask for window changes only when one is on.
-        AccessibilityServiceInfo info = getServiceInfo();
+        // getServiceInfo is API 16; before it the service cannot be reconfigured at runtime.
+        AccessibilityServiceInfo info = Compat.atLeast(16) ? getServiceInfo() : null;
         if (info != null && (!stockHome.isEmpty() || !powerOnLiveTv.isEmpty() || watchFront)) {
             info.eventTypes |= AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
             setServiceInfo(info);
@@ -231,9 +238,9 @@ public class HomeKeyService extends AccessibilityService {
         holdAppKeys = RemoteKeys.parseHoldAppKeys(config.appKeys);
         holdAppScancodes = RemoteKeys.parseHoldAppScancodes(config.appKeys);
         // gamepad_passthrough, off by default. Only with key_filter on: off, the service never filters keys.
-        if (config.gamepadPassthrough && config.keyFilter && gamepads == null) {
+        if (config.gamepadPassthrough && config.keyFilter && gamepads == null && Compat.atLeast(16)) {
             gamepads = new GamepadPassthrough(this);
-            gamepads.start();
+            ((GamepadPassthrough) gamepads).start();
         }
     }
 
@@ -362,7 +369,7 @@ public class HomeKeyService extends AccessibilityService {
     /** The system power menu (Restart, and Power off where the firmware has it); the TV asks before it acts. */
     static void openPowerMenu() {
         HomeKeyService service = running;
-        if (service != null) service.performGlobalAction(GLOBAL_ACTION_POWER_DIALOG);
+        if (service != null && Compat.atLeast(16)) service.performGlobalAction(GLOBAL_ACTION_POWER_DIALOG);
     }
 
     static boolean powerOnRedirect(String liveTv, CharSequence pkg, long now, long armedUntil) {
@@ -377,6 +384,7 @@ public class HomeKeyService extends AccessibilityService {
      *  front comes back and sends a window event, and onAccessibilityEvent covers it only if it is the stock home.
      *  An HDMI input or an app that the TV resumed at boot is left alone. */
     private void probeAtBoot() {
+        if (!Compat.atLeast(17)) return;   // Settings.Global, and the boot counter, are API 17
         int boot = Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1);
         SharedPreferences prefs = getSharedPreferences("boot", MODE_PRIVATE);
         if (!firstBindAfterBoot(boot, prefs.getInt("probe_boot", -1), SystemClock.elapsedRealtime())) return;

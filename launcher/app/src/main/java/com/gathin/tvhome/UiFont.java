@@ -3,6 +3,7 @@ package com.gathin.tvhome;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.util.TypedValue;
 
 /**
@@ -16,8 +17,9 @@ final class UiFont {
         Resources res = context.getResources();
         TypedValue value = new TypedValue();
         res.getValue(fontString, value, true);
-        String name = String.valueOf(value.string);
-        if (name.startsWith("res/")) return res.getFont(value.resourceId);
-        return Typeface.create(name, Typeface.NORMAL);
+        String name = value.string == null ? "" : String.valueOf(value.string);
+        // res/font and Resources.getFont are API 26. values/fonts.xml gives older TVs system family names.
+        if (Build.VERSION.SDK_INT >= 26 && name.startsWith("res/")) return res.getFont(value.resourceId);
+        return Typeface.create(name.isEmpty() ? "sans-serif" : name, Typeface.NORMAL);
     }
 }

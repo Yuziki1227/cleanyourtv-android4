@@ -29,6 +29,10 @@ def locale_files(res=RES):
     """{file name: [locale folder, ...]} for every file a values-* folder adds beside strings.xml."""
     found = {}
     for folder in sorted(res.glob("values-*")):
+        # values-v16, values-v21... are version qualifiers, not locales: the launcher's Android 4.0
+        # port adds those, and they carry no translations.
+        if re.fullmatch(r"values-v\d+", folder.name):
+            continue
         for path in sorted(folder.glob("*.xml")):
             if path.name != "strings.xml":
                 found.setdefault(path.name, []).append(folder.name)

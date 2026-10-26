@@ -38,7 +38,7 @@ class HebrewResourcesTest(unittest.TestCase):
                                      sorted(placeholders.findall(hebrew[name].text or "")))
 
     def test_hebrew_home_keeps_all_default_view_ids_and_types(self):
-        default, hebrew = views("layout"), views("layout-iw")
+        default, hebrew = views("layout"), views("layout-iw-v17")
         for view_id, tag in default.items():
             with self.subTest(view=view_id):
                 self.assertEqual(tag, hebrew.get(view_id))

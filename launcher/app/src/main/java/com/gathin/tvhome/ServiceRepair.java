@@ -10,7 +10,6 @@ import android.provider.Settings;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Android takes an app's accessibility services off the enabled list when the app is force-stopped (Settings, a
@@ -35,8 +34,7 @@ final class ServiceRepair {
     }
 
     static void restore(Context context) {
-        if (context.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
-                != PackageManager.PERMISSION_GRANTED) return;
+        if (!Compat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS)) return;
         try {
             ContentResolver cr = context.getContentResolver();
             String list = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
@@ -97,7 +95,8 @@ final class ServiceRepair {
     /** Writes the enabled list only while it still reads {@code expected}; an absent list counts as empty. */
     private static boolean replaceList(ContentResolver cr, String expected, String updated) {
         String now = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        return Objects.equals(now == null ? "" : now, expected == null ? "" : expected)
+        String a = now == null ? "" : now, b = expected == null ? "" : expected;
+        return a.equals(b)
                 && Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, updated);
     }
 

@@ -16,7 +16,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -732,7 +731,7 @@ final class Config {
         try (InputStream in = new FileInputStream(file)) {
             byte[] bytes = new byte[(int) file.length()];
             int n = in.read(bytes);
-            return n > 0 ? new String(bytes, 0, n, StandardCharsets.US_ASCII) : "absent";
+            return n > 0 ? new String(bytes, 0, n, Charsets.US_ASCII) : "absent";
         } catch (Exception ignored) {
             return "absent";
         }
@@ -752,7 +751,7 @@ final class Config {
             copy.delete();
         } else {
             try (FileOutputStream out = new FileOutputStream(copy)) {
-                out.write(json.toString().getBytes(StandardCharsets.UTF_8));
+                out.write(json.toString().getBytes(Charsets.UTF_8));
             } catch (IOException e) {
                 Log.w(TAG, "could not keep a copy of " + file + ": " + e.getMessage());
             }
@@ -770,7 +769,7 @@ final class Config {
             byte[] buf = new byte[(int) file.length()];
             int n = 0, r;
             while (n < buf.length && (r = in.read(buf, n, buf.length - n)) > 0) n += r;
-            String text = new String(buf, 0, n, StandardCharsets.UTF_8);
+            String text = new String(buf, 0, n, Charsets.UTF_8);
             if (text.startsWith("\uFEFF")) text = text.substring(1);   // Windows editors add a BOM
             return new JSONObject(text);
         } catch (Exception e) {

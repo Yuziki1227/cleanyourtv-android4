@@ -32,7 +32,7 @@ final class VpnBadge extends ReplacementSpan {
         this.fill = lock != null ? GREEN : RED;
         this.ink = lock != null ? INK : INK_OFF;
         this.lock = lock != null ? lock.mutate() : null;
-        if (this.lock != null) this.lock.setTint(ink);
+        if (this.lock != null) Compat.tint(this.lock, ink);
         this.density = density;
     }
 

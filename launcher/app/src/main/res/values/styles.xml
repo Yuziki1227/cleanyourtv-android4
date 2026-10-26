@@ -1,18 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.TvHome" parent="android:Theme.Material.NoActionBar.Fullscreen">
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- API 14-20: Holo is the newest full-screen dark theme on those sets. values-v21/styles.xml swaps in
+         Material, which the launcher was designed against, on Android 5.0+. -->
+    <style name="Theme.TvHome" parent="android:Theme.Holo.NoActionBar.Fullscreen">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:colorBackground">@android:color/black</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
 
     <!-- Frosted pill, tvOS style. -->
-    <style name="TopButtonBase">
+    <!-- fontFamily (16), letterSpacing (21) and drawableTint (23) are ignored below their API levels;
+         the launcher sets the equivalents in code where they matter. -->
+    <style name="TopButtonBase" tools:targetApi="23">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">42dp</item>
         <item name="android:layout_marginStart">10dp</item>
+        <item name="android:layout_marginLeft">10dp</item>
         <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingLeft">16dp</item>
         <item name="android:paddingEnd">20dp</item>
+        <item name="android:paddingRight">20dp</item>
         <item name="android:gravity">center</item>
         <item name="android:background">@drawable/pill_bg</item>
         <item name="android:textColor">@drawable/pill_text</item>
@@ -31,7 +38,9 @@
     <style name="TopButtonIcon" parent="TopButtonBase">
         <item name="android:layout_width">42dp</item>
         <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingLeft">10dp</item>
         <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingRight">10dp</item>
         <item name="android:drawablePadding">0dp</item>
     </style>
 
@@ -40,7 +49,9 @@
         <item name="android:layout_height">52dp</item>
         <item name="android:gravity">center_vertical</item>
         <item name="android:paddingStart">18dp</item>
+        <item name="android:paddingLeft">18dp</item>
         <item name="android:paddingEnd">18dp</item>
+        <item name="android:paddingRight">18dp</item>
         <item name="android:background">@drawable/settings_choice_bg</item>
         <item name="android:textColor">#FFFFFFFF</item>
         <item name="android:textSize">18sp</item>
@@ -51,6 +62,7 @@
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_weight">1</item>
         <item name="android:layout_marginEnd">10dp</item>
+        <item name="android:layout_marginRight">10dp</item>
         <item name="android:gravity">center</item>
     </style>
 </resources>

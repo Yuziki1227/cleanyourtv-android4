@@ -114,7 +114,7 @@ public class SkyView extends View {
         if (drawable == null) {
             drawable = new BitmapDrawable(getResources(), texture);
             drawable.setGravity(Gravity.FILL);
-            setBackground(drawable);
+            Compat.setBackground(this, drawable);
         }
         invalidate();
     }

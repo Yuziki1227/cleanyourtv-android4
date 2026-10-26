@@ -23,6 +23,8 @@ final class OpenOnStart {
     }
 
     static int boot(Context ctx) {
+        // Settings.Global is API 17; Android 4.0 has no boot counter, so the feature stays off there.
+        if (!Compat.atLeast(17)) return -1;
         return Settings.Global.getInt(ctx.getContentResolver(), Settings.Global.BOOT_COUNT, -1);
     }
 
@@ -33,7 +35,6 @@ final class OpenOnStart {
 
     /** The app's TV entry point, or its phone one; null when it is uninstalled or disabled, so Home stays. */
     static Intent intent(PackageManager pm, String pkg) {
-        Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
-        return i != null ? i : pm.getLaunchIntentForPackage(pkg);
+        return Compat.leanbackOrLaunch(pm, pkg);
     }
 }

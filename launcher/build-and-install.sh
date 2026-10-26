@@ -14,6 +14,13 @@ export MSYS_NO_PATHCONV=1
 # number comes from the build file, so it follows the launcher instead of a hard-coded copy here.
 MIN_SDK=$(sed -n 's/^[[:space:]]*minSdk[[:space:]][[:space:]]*\([0-9]\{1,3\}\)[[:space:]]*$/\1/p' app/build.gradle 2>/dev/null | head -n 1 || true)
 TV_SDK=$("$PY" -I "$TOOLS/tv.py" 'getprop ro.build.version.sdk' 2>/dev/null | tr -dc '0-9' || true)
+# Android 4.0-6.0 have no `cmd package` and (before 4.3) no `settings` command; the legacy script uses
+# only pm/am/dumpsys. Keep this script for Android 7.0 (SDK 24) and newer.
+if [ -n "$TV_SDK" ] && [ "$TV_SDK" -ge 14 ] && [ "$TV_SDK" -lt 24 ]; then
+  echo "This TV runs SDK $TV_SDK (Android 4-6). Use ./build-and-install-legacy.sh instead:" >&2
+  echo "  TV_HOST=$TV_HOST ./build-and-install-legacy.sh" >&2
+  exit 1
+fi
 if [ -n "$MIN_SDK" ] && [ -n "$TV_SDK" ] && [ "$TV_SDK" -lt "$MIN_SDK" ]; then
   echo "ERROR: this TV runs SDK $TV_SDK and the launcher is built with minSdk $MIN_SDK (app/build.gradle)," >&2
   echo "so pm install would answer INSTALL_FAILED_OLDER_SDK. Nothing was built, pushed or disabled." >&2

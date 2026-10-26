@@ -100,7 +100,7 @@ public final class LauncherSettingsActivity extends Activity {
         // Mirror text alignment without globally opting the launcher into RTL. Numeric rows
         // still need explicit ordering in Android's no-supportsRtl compatibility mode.
         if (getResources().getBoolean(R.bool.rtl_menu_bar))
-            findViewById(android.R.id.content).setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+            Compat.setLayoutDirection(findViewById(android.R.id.content), View.LAYOUT_DIRECTION_RTL);
         if (getResources().getBoolean(R.bool.rtl_app_grid)) {
             reverseRow(columnChoices);
             reverseRow(rowChoices);
@@ -207,13 +207,16 @@ public final class LauncherSettingsActivity extends Activity {
     private void showOpenOnStartPicker() {
         PackageManager pm = getPackageManager();
         List<String[]> apps = new ArrayList<>();
-        Intent tv = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
-        for (ResolveInfo r : pm.queryIntentActivities(tv, 0)) {
-            String pkg = r.activityInfo.packageName;
-            if (pkg.equals(getPackageName())) continue;
-            boolean seen = false;
-            for (String[] a : apps) seen |= a[1].equals(pkg);
-            if (!seen) apps.add(new String[]{r.loadLabel(pm).toString(), pkg});
+        // Both categories: Android TV uses LEANBACK_LAUNCHER, Android 4.0 sets only have LAUNCHER.
+        for (String category : new String[]{Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
+            Intent tv = new Intent(Intent.ACTION_MAIN).addCategory(category);
+            for (ResolveInfo r : pm.queryIntentActivities(tv, 0)) {
+                String pkg = r.activityInfo.packageName;
+                if (pkg.equals(getPackageName())) continue;
+                boolean seen = false;
+                for (String[] a : apps) seen |= a[1].equals(pkg);
+                if (!seen) apps.add(new String[]{r.loadLabel(pm).toString(), pkg});
+            }
         }
         Collections.sort(apps, (a, b) -> a[0].compareToIgnoreCase(b[0]));
         String[] labels = new String[apps.size() + 1];

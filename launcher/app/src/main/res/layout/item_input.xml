@@ -5,7 +5,9 @@
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:paddingStart="12dp"
+    android:paddingLeft="12dp"
     android:paddingEnd="12dp"
+    android:paddingRight="12dp"
     android:background="@drawable/input_row_bg"
     android:focusable="true"
     android:clickable="true">
@@ -24,7 +26,9 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="10dp"
+        android:layout_marginLeft="10dp"
         android:layout_marginEnd="12dp"
+        android:layout_marginRight="12dp"
         android:textColor="@drawable/pill_text"
         android:duplicateParentState="true"
         android:textSize="15sp"
@@ -36,6 +40,7 @@
         android:layout_width="7dp"
         android:layout_height="7dp"
         android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
         android:background="@drawable/status_dot" />
 
     <TextView

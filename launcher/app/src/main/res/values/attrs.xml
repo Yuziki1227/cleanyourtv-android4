@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ClockText: the API 14 replacement for android.widget.TextClock (API 17). -->
+    <declare-styleable name="ClockText">
+        <attr name="clockFormat12" format="string" />
+        <attr name="clockFormat24" format="string" />
+    </declare-styleable>
+</resources>
